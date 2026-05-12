@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,82 +44,88 @@ mrb_module_get(mrb_state *mrb, const char *name)
 }
 #endif
 
+static const char *posix_sh_cmds[] = {
+  "!", ".", ":", "break", "case", "continue", "do", "done",
+  "elif", "else", "esac", "eval", "exec", "exit", "export",
+  "fi", "for", "if", "in", "readonly", "return", "set",
+  "shift", "then", "times", "trap", "unset", "until", "while"
+};
+
 /*
- * Checks if an executable exists at the given path.
- * Returns 1 if executable, 0 if not.
+ * Returns 1 if a single string command should be interpreted by the shell.
+ * This mirrors CRuby's rule: use the shell for reserved words, built-ins,
+ * or strings containing shell meta characters.
  */
 static int
-executable_exists(const char *path)
+command_needs_shell(const char *cmd)
 {
-  struct stat st;
-  if (stat(path, &st) == -1) {
-    return 0;
+  const char *p;
+  const char *first = NULL;
+  size_t first_len = 0;
+  int has_meta = 0;
+  size_t i;
+
+  for (p = cmd; *p; p++) {
+    if (*p == ' ' || *p == '\t') {
+      if (first && first_len == 0) {
+        first_len = (size_t)(p - first);
+      }
+    } else if (!first) {
+      first = p;
+    }
+
+    if (!has_meta && strchr("*?{}[]<>()~&|\\$;'`\"\n#", *p)) {
+      has_meta = 1;
+    }
+    if (first && first_len == 0) {
+      if (*p == '=') {
+        has_meta = 1;
+      } else if (*p == '/') {
+        first_len = sizeof("this-is-longer-than-any-shell-keyword");
+      }
+    }
+    if (has_meta) {
+      break;
+    }
   }
-  return (st.st_mode & S_IXUSR) ? 1 : 0;
+
+  if (!has_meta && first) {
+    if (first_len == 0) {
+      first_len = (size_t)(p - first);
+    }
+    for (i = 0; i < sizeof(posix_sh_cmds) / sizeof(posix_sh_cmds[0]); i++) {
+      size_t len = strlen(posix_sh_cmds[i]);
+      if (first_len == len && strncmp(first, posix_sh_cmds[i], len) == 0) {
+        return 1;
+      }
+    }
+  }
+  return has_meta;
 }
 
-/*
- * Searches PATH for an executable named `cmd`.
- * Returns a malloc'd string with the full path, or NULL.
- */
-static char *
-search_path(const char *cmd)
+static mrb_int
+split_command_args(char *cmd, const char **argv)
 {
-  const char *path_env;
-  char *path_copy, *dir, *full_path;
-  size_t cmd_len, dir_len;
+  mrb_int argc = 0;
+  char *p = cmd;
 
-  path_env = getenv("PATH");
-  if (!path_env) {
-    return NULL;
-  }
-  path_copy = strdup(path_env);
-  if (!path_copy) {
-    return NULL;
-  }
-  cmd_len = strlen(cmd);
-  dir = strtok(path_copy, ":");
-  while (dir) {
-    dir_len = strlen(dir);
-    full_path = (char *)malloc(dir_len + 1 + cmd_len + 1);
-    if (!full_path) {
-      free(path_copy);
-      return NULL;
+  while (*p) {
+    while (*p == ' ' || *p == '\t') {
+      p++;
     }
-    memcpy(full_path, dir, dir_len);
-    full_path[dir_len] = '/';
-    memcpy(full_path + dir_len + 1, cmd, cmd_len + 1);
-    if (executable_exists(full_path)) {
-      free(path_copy);
-      return full_path;
+    if (!*p) {
+      break;
     }
-    free(full_path);
-    dir = strtok(NULL, ":");
+    argv[argc++] = p;
+    while (*p && *p != ' ' && *p != '\t') {
+      p++;
+    }
+    if (*p) {
+      *p++ = '\0';
+    }
   }
-  free(path_copy);
-  return NULL;
-}
-
-/*
- * Checks whether the given command name can be executed.
- * Raises Errno::ENOENT if not found.
- */
-static void
-check_command(mrb_state *mrb, const char *cmd)
-{
-  if (strchr(cmd, '/')) {
-    if (!executable_exists(cmd)) {
-      errno = ENOENT;
-      mrb_sys_fail(mrb, cmd);
-    }
-  } else {
-    char *found = search_path(cmd);
-    if (!found) {
-      errno = ENOENT;
-      mrb_sys_fail(mrb, cmd);
-    }
-    free(found);
-  }
+  argv[argc] = NULL;
+  return argc;
 }
 
 /*
@@ -173,6 +180,8 @@ mrb_f_spawn(mrb_state *mrb, mrb_value klass)
   int start = 0;
   pid_t pid;
   int out_fd = -1, err_fd = -1, in_fd = -1;
+  const char *cmd;
+  const char *fail_cmd = NULL;
 
   mrb_get_args(mrb, "*", &argv, &argc);
   if (argc == 0) {
@@ -221,11 +230,11 @@ mrb_f_spawn(mrb_state *mrb, mrb_value klass)
       prog0 = prog;
     }
     start = 1;
-    check_command(mrb, mrb_string_value_cstr(mrb, &prog));
   } else {
     prog = argv[0];
     prog0 = argv[0];
-    if (argc == 1) {
+    cmd = mrb_string_value_cstr(mrb, &argv[0]);
+    if (argc == 1 && command_needs_shell(cmd)) {
       pid = fork();
       if (pid == 0) {
         if (out_fd >= 0) {
@@ -245,21 +254,52 @@ mrb_f_spawn(mrb_state *mrb, mrb_value klass)
       }
       return mrb_fixnum_value(pid);
     }
+    fail_cmd = cmd;
     start = 1;
-    check_command(mrb, mrb_string_value_cstr(mrb, &prog));
   }
   {
     const char **cargv;
-    cargv = (const char **)mrb_alloca(mrb, sizeof(char *) * (argc - start + 2));
-    cargv[0] = mrb_string_value_cstr(mrb, &prog0);
-    for (i = start; i < argc; i++) {
-      cargv[i - start + 1] = mrb_string_value_cstr(mrb, &argv[i]);
+    char *split_cmd = NULL;
+    mrb_int cargc;
+    int errfd[2];
+    ssize_t nread;
+    int child_errno;
+
+    if (!mrb_array_p(argv[0]) && argc == 1) {
+      size_t cmd_len = strlen(cmd);
+      split_cmd = (char *)mrb_alloca(mrb, cmd_len + 1);
+      memcpy(split_cmd, cmd, cmd_len + 1);
+      cargv = (const char **)mrb_alloca(mrb, sizeof(char *) * (cmd_len / 2 + 2));
+      cargc = split_command_args(split_cmd, cargv);
+      if (cargc == 0) {
+        errno = ENOENT;
+        mrb_sys_fail(mrb, "");
+      }
+      fail_cmd = cargv[0];
+    } else {
+      cargv = (const char **)mrb_alloca(mrb, sizeof(char *) * (argc - start + 2));
+      cargv[0] = mrb_string_value_cstr(mrb, &prog0);
+      for (i = start; i < argc; i++) {
+        cargv[i - start + 1] = mrb_string_value_cstr(mrb, &argv[i]);
+      }
+      cargv[argc - start + 1] = NULL;
+      fail_cmd = mrb_string_value_cstr(mrb, &prog);
     }
-    cargv[argc - start + 1] = NULL;
+    if (pipe(errfd) == -1) {
+      mrb_sys_fail(mrb, "pipe failed");
+    }
+    if (fcntl(errfd[1], F_SETFD, FD_CLOEXEC) == -1) {
+      close(errfd[0]);
+      close(errfd[1]);
+      mrb_sys_fail(mrb, "fcntl failed");
+    }
     fflush(stdout);
     fflush(stderr);
     pid = fork();
     if (pid == 0) {
+      int exec_errno;
+
+      close(errfd[0]);
       if (out_fd >= 0) {
         redirect_fd(mrb, out_fd, STDOUT_FILENO);
       }
@@ -269,11 +309,28 @@ mrb_f_spawn(mrb_state *mrb, mrb_value klass)
       if (in_fd >= 0) {
         redirect_fd(mrb, in_fd, STDIN_FILENO);
       }
-      execvp(mrb_string_value_cstr(mrb, &prog), cargv);
-      _exit(errno == ENOENT ? 127 : 126);
+      execvp(fail_cmd, (char *const *)cargv);
+      exec_errno = errno;
+      if (write(errfd[1], &exec_errno, sizeof(exec_errno)) < 0) {
+        /* Best effort: the parent will still observe child exit. */
+      }
+      _exit(exec_errno == ENOENT ? 127 : 126);
     }
+    close(errfd[1]);
     if (pid < 0) {
+      close(errfd[0]);
       mrb_sys_fail(mrb, "fork failed");
+    }
+    nread = read(errfd[0], &child_errno, sizeof(child_errno));
+    close(errfd[0]);
+    if (nread < 0) {
+      waitpid(pid, NULL, 0);
+      mrb_sys_fail(mrb, "read failed");
+    }
+    if (nread > 0) {
+      waitpid(pid, NULL, 0);
+      errno = child_errno;
+      mrb_sys_fail(mrb, fail_cmd);
     }
     return mrb_fixnum_value(pid);
   }
