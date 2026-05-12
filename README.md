@@ -53,7 +53,7 @@ Add to your mruby build config:
 MRuby::Build.new("app") do |conf|
   conf.toolchain
   conf.gembox "default"
-  conf.gem github: "iij/mruby-process", branch: "master"
+  conf.gem github: "0x1eef/mruby-process", branch: "main"
 end
 ```
 
