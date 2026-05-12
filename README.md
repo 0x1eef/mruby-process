@@ -4,6 +4,15 @@ mruby-process provides the Process module and related Kernel methods
 for mruby. It is a port of [iij/mruby-process](https://github.com/iij/mruby-process)
 with additional features.
 
+## Features
+
+| Module | Methods |
+|--------|--------|
+| `Process` | `.pid`, `.ppid`, `.kill`, `.fork`, `.waitpid`, `.spawn` |
+| `Process::Status` | `.pid`, `.exitstatus`, `.exited?`, `.signaled?`, `.stopped?`, `.stopsig`, `.termsig`, `.coredump?`, `.success?` |
+| `Kernel` | `#system`, `#fork`, `#exit`, `#exit!`, `#sleep` |
+| `Global` | `$$`, `$?` |
+
 ## Examples
 
 #### Process.spawn
