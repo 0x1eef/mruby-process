@@ -6,7 +6,10 @@ with additional features.
 
 ## Examples
 
-### Spawning a command
+#### Spawning a command
+
+`Process.spawn` forks a child process and executes the given command.
+It returns the PID and does not wait for the child to finish.
 
 ```ruby
 pid = Process.spawn("echo", "hello")
@@ -14,7 +17,11 @@ Process.waitpid(pid)
 puts $?.success?  # => true
 ```
 
-### Capturing output
+#### Capturing output
+
+You can redirect stdout or stderr to an IO object using the `out:` and
+`err:` options. Combined with `IO.pipe`, this lets you capture the
+output of a spawned command.
 
 ```ruby
 r, w = IO.pipe
@@ -25,7 +32,10 @@ r.close
 Process.waitpid(pid)
 ```
 
-### Forking a child
+#### Forking a child
+
+`Kernel#fork` creates a child process and runs the given block in it.
+The child can exit with `Kernel#exit!` to set its exit status.
 
 ```ruby
 pid = fork do
@@ -35,7 +45,10 @@ end
 Process.waitpid(pid)
 ```
 
-### Process status
+#### Process status
+
+`Process::Status` provides access to the exit status, signal information,
+and predicates about a completed child process.
 
 ```ruby
 pid = Process.spawn("false")
