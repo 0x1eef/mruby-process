@@ -1,5 +1,5 @@
 /*
-** process.c - 
+** process.c -
 */
 
 #include "mruby.h"
@@ -8,6 +8,7 @@
 #include "mruby/string.h"
 #include "mruby/variable.h"
 #include "mruby/error.h"
+#include "mruby/hash.h"
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -40,6 +41,175 @@ mrb_module_get(mrb_state *mrb, const char *name)
   return mrb_class_get(mrb, name);
 }
 #endif
+
+/*
+ * Redirects fd `src` to `dest` using dup2.
+ * Closes src after redirecting.
+ */
+static void
+redirect_fd(mrb_state *mrb, int src, int dest)
+{
+  if (src != dest) {
+    if (dup2(src, dest) == -1) {
+      mrb_sys_fail(mrb, "dup2 failed");
+    }
+    close(src);
+  }
+}
+
+/*
+ * Extracts a file descriptor from a Ruby IO object or Fixnum.
+ * Returns -1 on failure.
+ */
+static int
+fd_from_value(mrb_state *mrb, mrb_value val)
+{
+  if (mrb_fixnum_p(val)) {
+    return mrb_fixnum(val);
+  }
+  if (mrb_respond_to(mrb, val, mrb_intern_lit(mrb, "to_i"))) {
+    val = mrb_funcall(mrb, val, "to_i", 0);
+    if (mrb_fixnum_p(val)) {
+      return mrb_fixnum(val);
+    }
+  }
+  return -1;
+}
+
+/*
+ * Process.spawn([cmd, arg0], arg1, ...) or
+ * Process.spawn(cmd, arg1, ..., opts)
+ * Process.spawn(env, cmd, arg1, ..., opts)
+ *
+ * Returns the PID of the child process.
+ */
+static mrb_value
+mrb_f_spawn(mrb_state *mrb, mrb_value klass)
+{
+  mrb_value *argv;
+  mrb_int argc;
+  mrb_int i;
+  mrb_value prog = mrb_nil_value();
+  mrb_value prog0 = mrb_nil_value();
+  mrb_value opts = mrb_nil_value();
+  int start = 0;
+  pid_t pid;
+  int out_fd = -1;
+  int err_fd = -1;
+  int in_fd = -1;
+
+  mrb_get_args(mrb, "*", &argv, &argc);
+  if (argc == 0) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "wrong number of arguments (0 for 1+)");
+  }
+
+  /* Check for options hash at the end */
+  if (argc > 0 && mrb_hash_p(argv[argc - 1])) {
+    opts = argv[argc - 1];
+    argc--;
+  }
+
+  /* Parse options */
+  if (!mrb_nil_p(opts)) {
+    mrb_value out_val, err_val, in_val;
+
+    out_val = mrb_hash_get(mrb, opts, mrb_symbol_value(mrb_intern_lit(mrb, "out")));
+    if (!mrb_nil_p(out_val)) {
+      out_fd = fd_from_value(mrb, out_val);
+      if (out_fd < 0) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "out option must respond to #to_i");
+      }
+    }
+
+    err_val = mrb_hash_get(mrb, opts, mrb_symbol_value(mrb_intern_lit(mrb, "err")));
+    if (!mrb_nil_p(err_val)) {
+      err_fd = fd_from_value(mrb, err_val);
+      if (err_fd < 0) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "err option must respond to #to_i");
+      }
+    }
+
+    in_val = mrb_hash_get(mrb, opts, mrb_symbol_value(mrb_intern_lit(mrb, "in")));
+    if (!mrb_nil_p(in_val)) {
+      in_fd = fd_from_value(mrb, in_val);
+      if (in_fd < 0) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "in option must respond to #to_i");
+      }
+    }
+  }
+
+  /* First argument could be [cmd, arg0] or just cmd */
+  if (mrb_array_p(argv[0])) {
+    mrb_value *arr;
+    mrb_int arr_len;
+    arr = RARRAY_PTR(argv[0]);
+    arr_len = RARRAY_LEN(argv[0]);
+    if (arr_len < 1) {
+      mrb_raise(mrb, E_ARGUMENT_ERROR, "first element of array must be a command");
+    }
+    prog = arr[0];
+    if (arr_len > 1) {
+      prog0 = arr[1];
+    } else {
+      prog0 = prog;
+    }
+    start = 1;
+  } else {
+    prog = argv[0];
+    prog0 = argv[0];
+    /* If there's only one argument + maybe opts, use shell */
+    if (argc == 1) {
+      const char *cmd = mrb_string_value_cstr(mrb, &argv[0]);
+      char buf[4];
+      snprintf(buf, sizeof(buf), "%d", STDERR_FILENO + 1);
+
+      fflush(stdout);
+      fflush(stderr);
+
+      pid = fork();
+      if (pid == 0) {
+        if (out_fd >= 0) redirect_fd(mrb, out_fd, STDOUT_FILENO);
+        if (err_fd >= 0) redirect_fd(mrb, err_fd, STDERR_FILENO);
+        if (in_fd >= 0) redirect_fd(mrb, in_fd, STDIN_FILENO);
+        execl("/bin/sh", "sh", "-c", cmd, (char *)NULL);
+        _exit(127);
+      }
+      if (pid < 0) {
+        mrb_sys_fail(mrb, "fork failed");
+      }
+      return mrb_fixnum_value(pid);
+    }
+    start = 1;
+  }
+
+  /* Build argv array for execvp */
+  {
+    const char **cargv;
+    cargv = (const char **)mrb_alloca(mrb, sizeof(char *) * (argc - start + 2));
+    cargv[0] = mrb_string_value_cstr(mrb, &prog0);
+    for (i = start; i < argc; i++) {
+      cargv[i - start + 1] = mrb_string_value_cstr(mrb, &argv[i]);
+    }
+    cargv[argc - start + 1] = NULL;
+
+    fflush(stdout);
+    fflush(stderr);
+
+    pid = fork();
+    if (pid == 0) {
+      if (out_fd >= 0) redirect_fd(mrb, out_fd, STDOUT_FILENO);
+      if (err_fd >= 0) redirect_fd(mrb, err_fd, STDERR_FILENO);
+      if (in_fd >= 0) redirect_fd(mrb, in_fd, STDIN_FILENO);
+      execvp(mrb_string_value_cstr(mrb, &prog), cargv);
+      /* If we get here, exec failed. Check for ENOENT. */
+      _exit(errno == ENOENT ? 127 : 126);
+    }
+    if (pid < 0) {
+      mrb_sys_fail(mrb, "fork failed");
+    }
+    return mrb_fixnum_value(pid);
+  }
+}
 
 mrb_value
 mrb_f_kill(mrb_state *mrb, mrb_value klass)
@@ -81,7 +251,7 @@ mrb_f_kill(mrb_state *mrb, mrb_value klass)
     }
   } else {
     mrb_raisef(mrb, E_TYPE_ERROR, "bad signal type %S",
-    	       mrb_obj_value(mrb_class(mrb, sigo)));
+               mrb_obj_value(mrb_class(mrb, sigo)));
   }
 
   sent = 0;
@@ -92,7 +262,7 @@ mrb_f_kill(mrb_state *mrb, mrb_value klass)
   while (argc-- > 0) {
     if (!mrb_fixnum_p(*argv)) {
       mrb_raisef(mrb, E_TYPE_ERROR, "wrong argument type %S (expected Fixnum)",
-      	         mrb_obj_value(mrb_class(mrb, *argv)));
+                 mrb_obj_value(mrb_class(mrb, *argv)));
     }
     if (kill(mrb_fixnum(*argv), signo) == -1)
       mrb_sys_fail(mrb, "kill");
@@ -373,6 +543,7 @@ mrb_mruby_process_gem_init(mrb_state *mrb)
   mrb_define_class_method(mrb, p, "waitpid", mrb_f_waitpid, MRB_ARGS_ANY());
   mrb_define_class_method(mrb, p, "pid",     mrb_f_pid,     MRB_ARGS_NONE());
   mrb_define_class_method(mrb, p, "ppid",    mrb_f_ppid,    MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, p, "spawn",   mrb_f_spawn,   MRB_ARGS_ANY());
 
   s = mrb_define_class_under(mrb, p, "Status", mrb->object_class);
   mrb_define_method(mrb, s, "coredump?", mrb_procstat_coredump, MRB_ARGS_NONE());
