@@ -197,3 +197,5 @@ describe Kernel do
     end
   end
 end
+
+Minitest.run(ARGV) || exit(1)

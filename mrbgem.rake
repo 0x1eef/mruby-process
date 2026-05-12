@@ -7,8 +7,7 @@ MRuby::Gem::Specification.new('mruby-process') do |spec|
   spec.add_dependency 'mruby-io'
 
   if ENV["ENV"] == "TEST"
-    spec.add_dependency 'mruby-minitest', github: '0x1eef/mruby-minitest'
-    spec.add_dependency 'mruby-command',  github: '0x1eef/mruby-command'
+    spec.add_dependency 'mruby-minitest', github: '0x1eef/mruby-minitest', branch: "main"
     spec.rbfiles.concat Dir[File.expand_path('spec/*.rb', __dir__)].sort
   end
 
