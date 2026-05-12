@@ -9,7 +9,7 @@
 #   make clean  # clean build artifacts
 
 MRUBY_DIR    ?= ../mruby
-BUILD_CONFIG  = $(.CURDIR)/build.rb
+BUILD_CONFIG  = $(CURDIR)/build.rb
 BUILD_NAME    = mruby-process
 BUILD_DIR     = $(MRUBY_DIR)/build/$(BUILD_NAME)
 BUILD_PROFILE ?= test
