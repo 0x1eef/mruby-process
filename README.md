@@ -1,15 +1,15 @@
 ## About
 
 mruby-process provides the Process module and related Kernel methods
-for mruby. It is a fork of [iij/mruby-process](https://github.com/iij/mruby-process),
-and adds Process.spawn.
+for mruby. It is a port of [iij/mruby-process](https://github.com/iij/mruby-process)
+with additional features.
 
 ## Quick start
 
 #### Process.spawn
 
 Process.spawn forks a child process and executes the given command.
-It returns the PID and does not wait for the child to finish:
+It returns the PID and does not wait for the child to finish.
 
 ```ruby
 pid = Process.spawn("echo", "hello")
@@ -21,7 +21,7 @@ puts $?.success?
 
 You can redirect stdout or stderr to an IO object using the out: and
 err: options. Combined with IO.pipe, this lets you capture the output
-of a spawned command:
+of a spawned command.
 
 ```ruby
 r, w = IO.pipe
@@ -35,7 +35,7 @@ Process.waitpid(pid)
 #### Kernel.fork
 
 Kernel#fork creates a child process and runs the given block in it.
-The child can exit with Kernel#exit! to set its exit status:
+The child can exit with Kernel#exit! to set its exit status.
 
 ```ruby
 pid = fork do
@@ -48,7 +48,7 @@ Process.waitpid(pid)
 #### Process::Status
 
 Process::Status provides the exit status and predicates for a completed
-child process:
+child process.
 
 ```ruby
 pid = Process.spawn("false")
@@ -67,23 +67,24 @@ Returns the process ID of the current process.
 Returns the process ID of the parent process.
 
 **Process.kill**<br>
-Sends a signal to a process.
+Sends a signal to a process by name or number.
 
 **Process.fork**<br>
-Creates a child process. When given a block, the child
-runs the block and exits.
+Creates a child process.
 
 **Process.waitpid**<br>
 Waits for a child process to exit and captures its
-status in `$?`.
+status in $?.
 
 **Process.spawn**<br>
 Forks a child and executes a command with optional
-redirection of stdin, stdout, and stderr.
+redirection of stdin, stdout, and stderr. Raises
+Errno::ENOENT when the command is not found.
 
 **Process::Status**<br>
-Provides the exit status, signal information,
-and predicates for a completed child process.
+Provides the exit status and signal information for a
+completed child process. Includes exitstatus, exited?,
+signaled?, stopped?, stopsig, termsig, and coredump?.
 
 **Kernel#system**<br>
 Runs a command via the shell and returns true or false.
