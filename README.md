@@ -1,53 +1,70 @@
-mruby-process
-=========
-[![Build Status](https://travis-ci.org/iij/mruby-process.svg?branch=master)](https://travis-ci.org/iij/mruby-process)
+## About
 
+mruby-process provides the Process module and related Kernel methods
+for mruby. It is a port of [iij/mruby-process](https://github.com/iij/mruby-process)
+with additional features.
 
-## install by mrbgems
- - add conf.gem line to `build_config.rb`
+## Examples
+
+### Spawning a command
+
 ```ruby
-MRuby::Build.new do |conf|
+pid = Process.spawn("echo", "hello")
+Process.waitpid(pid)
+puts $?.success?  # => true
+```
 
-    # ... (snip) ...
+### Capturing output
 
-    conf.gem :git => 'https://github.com/iij/mruby-process.git'
+```ruby
+r, w = IO.pipe
+pid = Process.spawn("echo", "hello", out: w)
+w.close
+puts r.read       # => "hello\n"
+r.close
+Process.waitpid(pid)
+```
+
+### Forking a child
+
+```ruby
+pid = fork do
+  puts "in child"
+  exit!(0)
+end
+Process.waitpid(pid)
+```
+
+### Process status
+
+```ruby
+pid = Process.spawn("false")
+Process.waitpid(pid)
+puts $?.exitstatus  # => 1
+puts $?.exited?     # => true
+puts $?.success?    # => false
+```
+
+## Integration
+
+Add to your mruby build config:
+
+```ruby
+MRuby::Build.new("app") do |conf|
+  conf.toolchain
+  conf.gembox "default"
+  conf.gem github: "iij/mruby-process", branch: "master"
 end
 ```
 
-## Features
+Dependencies are declared in [mrbgem.rake](mrbgem.rake):
 
- - Process - fork kill pid ppid waitpid waitpid2
- - Process::Status - all methods but `&`, ``>>``
-   - You can use ``Process::Status.new(pid, status)`` to set ``$?`` in
-     your script or other mrbgems.
- - Kernel - $$ exit exit! fork sleep system
-
-
-## Caveats
-
- - $? may not work correctly on the platform where ``pid_t`` is not ``int`` or
-   ``MRB_INT_MAX`` is less than ``PID_MAX`` (or /proc/sys/kernel/pid_max).
-
+| Dependency | Purpose |
+|---|---|
+| [mruby-io](https://github.com/iij/mruby-io) | IO.pipe, IO.select |
 
 ## License
 
-Copyright (c) 2012 Internet Initiative Japan Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the "Software"), 
-to deal in the Software without restriction, including without limitation 
-the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-and/or sell copies of the Software, and to permit persons to whom the 
-Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in 
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
-DEALINGS IN THE SOFTWARE.
-
+MIT
+<br>
+See [LICENSE](./LICENSE)
