@@ -60,51 +60,51 @@ puts $?.success?
 
 ## Features
 
-**Process.pid**<br>
+**Process.pid** <br>
 Returns the process ID of the current process.
 
-**Process.ppid**<br>
+**Process.ppid** <br>
 Returns the process ID of the parent process.
 
-**Process.kill**<br>
+**Process.kill** <br>
 Sends a signal to a process by name or number.
 
-**Process.fork**<br>
+**Process.fork** <br>
 Creates a child process.
 
-**Process.waitpid**<br>
+**Process.waitpid** <br>
 Waits for a child process to exit and captures its status in `$?`.
 
-**Process.spawn**<br>
+**Process.spawn** <br>
 Forks a child and executes a command with optional
 redirection of stdin, stdout, and stderr. Raises
 Errno::ENOENT when the command is not found.
 
-**Process::Status**<br>
+**Process::Status** <br>
 Provides the exit status and signal information for a
 completed child process. Includes exitstatus, exited?,
 signaled?, stopped?, stopsig, termsig, and coredump?.
 
-**Kernel#system**<br>
+**Kernel#system** <br>
 Runs a command via the shell and returns true or false.
 
-**Kernel#fork**<br>
+**Kernel#fork** <br>
 Creates a child process that runs the given block.
 
-**Kernel#exit**<br>
+**Kernel#exit** <br>
 Exits the process with the given status code.
 
-**Kernel#exit!**<br>
+**Kernel#exit!** <br>
 Exits the process immediately without calling exit
 handlers.
 
-**Kernel#sleep**<br>
+**Kernel#sleep** <br>
 Suspends the process for the given number of seconds.
 
-**$$**<br>
+**$$** <br>
 The process ID of the current process.
 
-**$?**<br>
+**$?** <br>
 The Process::Status of the last child process to complete.
 
 ## Integration
