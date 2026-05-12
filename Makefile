@@ -9,7 +9,7 @@
 #   make clean  # clean build artifacts
 
 MRUBY_DIR    ?= ../mruby
-BUILD_CONFIG  = $(CURDIR)/build.rb
+BUILD_CONFIG  = build.rb
 BUILD_NAME    = mruby-process
 BUILD_DIR     = $(MRUBY_DIR)/build/$(BUILD_NAME)
 BUILD_PROFILE ?= test
@@ -29,7 +29,7 @@ toolchain: $(TOOLCHAIN_STAMP)
 $(TOOLCHAIN_STAMP): $(BUILD_CONFIG) mrbgem.rake
 	mkdir -p tmp bin
 	ruby -C $(MRUBY_DIR) minirake clean 2>/dev/null || true
-	BUILD_PROFILE=$(BUILD_PROFILE) ruby -C $(MRUBY_DIR) minirake MRUBY_CONFIG=$(BUILD_CONFIG)
+	BUILD_PROFILE=$(BUILD_PROFILE) ruby -C $(MRUBY_DIR) minirake MRUBY_CONFIG=$(abspath $(BUILD_CONFIG))
 	cp -r $(BUILD_DIR)/bin/* bin/
 	touch $(TOOLCHAIN_STAMP)
 
