@@ -6,7 +6,7 @@ with additional features.
 
 ## Examples
 
-#### Spawning a command
+#### Process.spawn
 
 `Process.spawn` forks a child process and executes the given command.
 It returns the PID and does not wait for the child to finish.
@@ -17,7 +17,7 @@ Process.waitpid(pid)
 puts $?.success?  # => true
 ```
 
-#### Capturing output
+#### IO.pipe
 
 You can redirect stdout or stderr to an IO object using the `out:` and
 `err:` options. Combined with `IO.pipe`, this lets you capture the
@@ -32,7 +32,7 @@ r.close
 Process.waitpid(pid)
 ```
 
-#### Forking a child
+#### Kernel.fork
 
 `Kernel#fork` creates a child process and runs the given block in it.
 The child can exit with `Kernel#exit!` to set its exit status.
@@ -45,7 +45,7 @@ end
 Process.waitpid(pid)
 ```
 
-#### Process status
+#### Process::Status
 
 `Process::Status` provides access to the exit status, signal information,
 and predicates about a completed child process.
