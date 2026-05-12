@@ -6,51 +6,51 @@ with additional features.
 
 ## Features
 
-**Process.pid**
+**Process.pid**<br>
 Returns the process ID of the current process.
 
-**Process.ppid**
+**Process.ppid**<br>
 Returns the process ID of the parent process.
 
-**Process.kill**
+**Process.kill**<br>
 Sends a signal to a process.
 
-**Process.fork**
+**Process.fork**<br>
 Creates a child process. When given a block, the child
 runs the block and exits.
 
-**Process.waitpid**
+**Process.waitpid**<br>
 Waits for a child process to exit and captures its
 status in `$?`.
 
-**Process.spawn**
+**Process.spawn**<br>
 Forks a child and executes a command with optional
 redirection of stdin, stdout, and stderr.
 
-**Process::Status**
+**Process::Status**<br>
 Provides the exit status, signal information,
 and predicates for a completed child process.
 
-**Kernel#system**
+**Kernel#system**<br>
 Runs a command via the shell and returns true or false.
 
-**Kernel#fork**
+**Kernel#fork**<br>
 Creates a child process that runs the given block.
 
-**Kernel#exit**
+**Kernel#exit**<br>
 Exits the process with the given status code.
 
-**Kernel#exit!**
+**Kernel#exit!**<br>
 Exits the process immediately without calling exit
 handlers.
 
-**Kernel#sleep**
+**Kernel#sleep**<br>
 Suspends the process for the given number of seconds.
 
-**$$**
+**$$**<br>
 The process ID of the current process.
 
-**$?**
+**$?**<br>
 The Process::Status of the last child process to complete.
 
 ## Examples
