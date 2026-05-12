@@ -24,10 +24,9 @@ all: toolchain test
 test: toolchain
 	ENV=TEST bin/mruby spec/process_spec.rb
 
-# Build the mruby toolchain with mruby-process and all deps
 toolchain: $(TOOLCHAIN_STAMP)
 
-$(TOOLCHAIN_STAMP): $(BUILD_CONFIG) mrbgem.rake $(shell find mrblib spec -type f -name '*.rb' src -name '*.c' 2>/dev/null | sort)
+$(TOOLCHAIN_STAMP): $(BUILD_CONFIG) mrbgem.rake
 	mkdir -p tmp bin
 	ruby -C $(MRUBY_DIR) minirake clean 2>/dev/null || true
 	BUILD_PROFILE=$(BUILD_PROFILE) ruby -C $(MRUBY_DIR) minirake MRUBY_CONFIG=$(BUILD_CONFIG)
