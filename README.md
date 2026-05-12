@@ -4,56 +4,7 @@ mruby-process provides the Process module and related Kernel methods
 for mruby. It is a port of [iij/mruby-process](https://github.com/iij/mruby-process)
 with additional features.
 
-## Features
-
-**Process.pid**<br>
-Returns the process ID of the current process.
-
-**Process.ppid**<br>
-Returns the process ID of the parent process.
-
-**Process.kill**<br>
-Sends a signal to a process.
-
-**Process.fork**<br>
-Creates a child process. When given a block, the child
-runs the block and exits.
-
-**Process.waitpid**<br>
-Waits for a child process to exit and captures its
-status in `$?`.
-
-**Process.spawn**<br>
-Forks a child and executes a command with optional
-redirection of stdin, stdout, and stderr.
-
-**Process::Status**<br>
-Provides the exit status, signal information,
-and predicates for a completed child process.
-
-**Kernel#system**<br>
-Runs a command via the shell and returns true or false.
-
-**Kernel#fork**<br>
-Creates a child process that runs the given block.
-
-**Kernel#exit**<br>
-Exits the process with the given status code.
-
-**Kernel#exit!**<br>
-Exits the process immediately without calling exit
-handlers.
-
-**Kernel#sleep**<br>
-Suspends the process for the given number of seconds.
-
-**$$**<br>
-The process ID of the current process.
-
-**$?**<br>
-The Process::Status of the last child process to complete.
-
-## Examples
+## Quick start
 
 #### Process.spawn
 
@@ -106,6 +57,55 @@ puts $?.exitstatus
 puts $?.exited?
 puts $?.success?
 ```
+
+## Features
+
+**Process.pid**<br>
+Returns the process ID of the current process.
+
+**Process.ppid**<br>
+Returns the process ID of the parent process.
+
+**Process.kill**<br>
+Sends a signal to a process.
+
+**Process.fork**<br>
+Creates a child process. When given a block, the child
+runs the block and exits.
+
+**Process.waitpid**<br>
+Waits for a child process to exit and captures its
+status in `$?`.
+
+**Process.spawn**<br>
+Forks a child and executes a command with optional
+redirection of stdin, stdout, and stderr.
+
+**Process::Status**<br>
+Provides the exit status, signal information,
+and predicates for a completed child process.
+
+**Kernel#system**<br>
+Runs a command via the shell and returns true or false.
+
+**Kernel#fork**<br>
+Creates a child process that runs the given block.
+
+**Kernel#exit**<br>
+Exits the process with the given status code.
+
+**Kernel#exit!**<br>
+Exits the process immediately without calling exit
+handlers.
+
+**Kernel#sleep**<br>
+Suspends the process for the given number of seconds.
+
+**$$**<br>
+The process ID of the current process.
+
+**$?**<br>
+The Process::Status of the last child process to complete.
 
 ## Integration
 
