@@ -66,6 +66,12 @@ Returns the process ID of the current process.
 **Process.ppid** <br>
 Returns the process ID of the parent process.
 
+**Process.uid** <br>
+Returns the real user ID of the current process.
+
+**Process.euid** <br>
+Returns the effective user ID of the current process.
+
 **Process.kill** <br>
 Sends a signal to a process by name or number.
 

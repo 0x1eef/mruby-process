@@ -31,6 +31,30 @@ describe "Process" do
         expect(ppid > 0).must_equal true
       end
     end
+
+    context "::uid" do
+      let(:uid) { Process.uid }
+
+      it "returns an integer" do
+        expect(uid).must_be_kind_of Integer
+      end
+
+      it "is non-negative" do
+        expect(uid >= 0).must_equal true
+      end
+    end
+
+    context "::euid" do
+      let(:euid) { Process.euid }
+
+      it "returns an integer" do
+        expect(euid).must_be_kind_of Integer
+      end
+
+      it "is non-negative" do
+        expect(euid >= 0).must_equal true
+      end
+    end
   end
 
   context "::kill" do

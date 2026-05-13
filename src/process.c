@@ -561,6 +561,18 @@ mrb_f_ppid(mrb_state *mrb, mrb_value klass)
 }
 
 static mrb_value
+mrb_f_uid(mrb_state *mrb, mrb_value klass)
+{
+  return mrb_fixnum_value((mrb_int)getuid());
+}
+
+static mrb_value
+mrb_f_euid(mrb_state *mrb, mrb_value klass)
+{
+  return mrb_fixnum_value((mrb_int)geteuid());
+}
+
+static mrb_value
 mrb_procstat_new(mrb_state *mrb, mrb_int pid, mrb_int status)
 {
   struct RClass *cls;
@@ -648,6 +660,8 @@ mrb_mruby_process_gem_init(mrb_state *mrb)
   mrb_define_class_method(mrb, p, "waitpid", mrb_f_waitpid, MRB_ARGS_ANY());
   mrb_define_class_method(mrb, p, "pid",     mrb_f_pid,     MRB_ARGS_NONE());
   mrb_define_class_method(mrb, p, "ppid",    mrb_f_ppid,    MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, p, "uid",     mrb_f_uid,     MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, p, "euid",    mrb_f_euid,    MRB_ARGS_NONE());
   mrb_define_class_method(mrb, p, "spawn",   mrb_f_spawn,   MRB_ARGS_ANY());
 
   s = mrb_define_class_under(mrb, p, "Status", mrb->object_class);
