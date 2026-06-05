@@ -396,6 +396,17 @@ mrb_f_kill(mrb_state *mrb, mrb_value klass)
 }
 
 static mrb_value
+mrb_f_setpgid(mrb_state *mrb, mrb_value klass)
+{
+  mrb_int pid = 0, pgid = 0;
+  mrb_get_args(mrb, "|ii", &pid, &pgid);
+  if (setpgid((pid_t)pid, (pid_t)pgid) == -1) {
+    mrb_sys_fail(mrb, "setpgid");
+  }
+  return mrb_fixnum_value(0);
+}
+
+static mrb_value
 mrb_f_fork(mrb_state *mrb, mrb_value klass)
 {
   mrb_value b;
@@ -663,6 +674,7 @@ mrb_mruby_process_gem_init(mrb_state *mrb)
   mrb_define_class_method(mrb, p, "uid",     mrb_f_uid,     MRB_ARGS_NONE());
   mrb_define_class_method(mrb, p, "euid",    mrb_f_euid,    MRB_ARGS_NONE());
   mrb_define_class_method(mrb, p, "spawn",   mrb_f_spawn,   MRB_ARGS_ANY());
+  mrb_define_class_method(mrb, p, "setpgid", mrb_f_setpgid, MRB_ARGS_OPT(2));
 
   s = mrb_define_class_under(mrb, p, "Status", mrb->object_class);
   mrb_define_method(mrb, s, "coredump?",  mrb_procstat_coredump,   MRB_ARGS_NONE());
